@@ -1,0 +1,72 @@
+services:
+  # 1. LE BROKER & BACKEND (La base de données)
+  redis:
+    image: redis:alpine
+    container_name: redis_server
+    ports:
+      - "6379:6379"
+    networks:
+      - ml-network
+
+  # 2. L'API (FastAPI) - Le chef d'orchestre
+  api:
+    build: .
+    container_name: fastapi_app
+    # Commande pour lancer FastAPI
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+    networks:
+      - ml-network
+
+  # 3. LE WORKER (Celery) - L'ouvrier qui fait le calcul lourd
+  worker:
+    build: .
+    container_name: celery_worker
+    # Commande pour lancer le worker Celery
+    command: celery -A worker.app worker --loglevel=info
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - MODEL_LATENCY=5
+    depends_on:
+      - redis
+    networks:
+      - ml-network
+
+  # 4. LE FRONT (Streamlit) - L'interface utilisateur
+  front:
+    build: .
+    container_name: streamlit_app
+    # Commande pour lancer Streamlit
+    command: streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      - api
+    networks:
+      - ml-network
+
+  # 5. MONITORING (Flower) - La visualisation technique
+  flower:
+    image: mher/flower:latest
+    container_name: flower_monitor
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    networks:
+      - ml-network
+
+networks:
+  ml-network:
+    driver: bridge

@@ -1,0 +1,72 @@
+services:
+  # 1. LE BROKER & BACKEND (RabbitMQ fait tout)
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_server
+    ports:
+      - "5672:5672"   # Port AMQP pour Celery
+      - "15672:15672" # Interface de gestion Web (guest/guest)
+    networks:
+      - ml-network
+
+  # 2. L'API (Producteur)
+  api:
+    build: .
+    container_name: fastapi_app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      # rpc:// dit à Celery d'utiliser une queue RabbitMQ pour stocker le résultat
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=rpc://
+    depends_on:
+      - rabbitmq
+    networks:
+      - ml-network
+
+  # 3. LE WORKER (Consommateur)
+  worker:
+    build: .
+    container_name: celery_worker
+    command: celery -A worker.app worker --loglevel=info
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=rpc://
+      - MODEL_LATENCY=5
+    depends_on:
+      - rabbitmq
+    networks:
+      - ml-network
+
+  # 4. LE FRONT (Streamlit)
+  front:
+    build: .
+    container_name: streamlit_app
+    command: streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      - api
+    networks:
+      - ml-network
+
+  # 5. MONITORING (Flower)
+  flower:
+    image: mher/flower:latest
+    container_name: flower_monitor
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=rpc://
+    depends_on:
+      - rabbitmq
+    networks:
+      - ml-network
+
+networks:
+  ml-network:
+    driver: bridge

@@ -89,5 +89,5 @@ docker compose -f docker-compose.final.yml up --scale worker=3 -d
 
 --- 
 
-
+Une fois ce TP finis, ouvrez le fichier README_HPA.md
 

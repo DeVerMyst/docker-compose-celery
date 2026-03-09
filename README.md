@@ -86,3 +86,8 @@ docker compose -f docker-compose.final.yml up --scale worker=3 -d
 
 1. Consultez **Flower** (`localhost:5555`) : 3 workers actifs apparaîtront.
 2. Envoyez 10 requêtes via FastAPI : vous observerez la répartition des tâches (Round-Robin) entre les différents containers workers dans les logs Docker.
+
+--- 
+
+
+

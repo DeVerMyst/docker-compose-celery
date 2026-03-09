@@ -1,0 +1,27 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker-scaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: worker-deployment # Doit correspondre au metadata.name dans 04_worker.yml
+  minReplicaCount: 1  # On garde 1 worker minimum pour la démo
+  maxReplicaCount: 10 # valeur max
+  pollingInterval: 5  # Fréquence de check (seconde) du nombre de worker pour up
+  cooldownPeriod:  30 # temps d'attente quand les jobs sont finis avant que stabilizationWindowSeconds check à son tour
+  triggers:
+    - type: rabbitmq
+      metadata:
+        # On utilise l'adresse complète : <service>.<namespace>.svc.cluster.local
+        host: http://guest:guest@rabbitmq-service.default.svc.cluster.local:15672/
+        protocol: http
+        queueName: celery
+        vhost: /       # Très important pour éviter l'erreur d'URL
+        mode: QueueLength
+        value: "3" # nombre de job par worker, si > 3 alors création d'un nouveau worker
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 30 # valeur du délai avant destruction des pods, default 300 s (5min)

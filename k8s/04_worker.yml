@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-deployment
+spec:
+  replicas: 1 # KEDA prendra la main ensuite
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+      - name: worker
+        image: devermyst/ia-tp:latest #ia-tp:latest  # image: ia-tp:latest 
+        imagePullPolicy: IfNotPresent # cherche l'image en local
+        command: ["celery", "-A", "worker.app", "worker", "--loglevel=info", "--concurrency=1"]
+        # command: ["celery", "-A", "worker", "worker", "--loglevel=info"]
+        env: # pour écouter les messages - répété dans api.yaml pour déposer les messages
+        - name: CELERY_BROKER_URL
+          value: "pyamqp://guest:guest@rabbitmq-service:5672//"
+        - name: CELERY_RESULT_BACKEND
+          value: "redis://redis-service:6379/0"
+        - name: MODEL_LATENCY
+          value: "10"
+        resources:
+          requests:
+            memory: "512Mi"   # Minimum garanti
+            cpu: "250m"
+          limits:
+            memory: "2Gi"     # Maximum autorisé (augmente si nécessaire)
+            cpu: "1000m"

@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamlit-service
+spec:
+  type: NodePort # Permet d'accéder au front depuis l'IP de ton ordi
+  selector:
+    app: streamlit
+  ports:
+    - port: 8501
+      targetPort: 8501
+---      
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlit-front
+  labels:
+    app: streamlit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: streamlit
+  template:
+    metadata:
+      labels:
+        app: streamlit
+    spec:
+      containers:
+      - name: streamlit
+        image: devermyst/ia-tp:latest #ia-tp:latest 
+        imagePullPolicy: IfNotPresent # cherche l'image en local
+        command: ["streamlit", "run", "app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+        env:
+          - name: API_URL
+            # On pointe vers le NOM du service Kubernetes de l'API - on garde le même que pour docker compose
+            value: "http://api:8000" 
+        ports:
+        - containerPort: 8501
+

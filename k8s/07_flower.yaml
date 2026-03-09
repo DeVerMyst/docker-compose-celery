@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: flower-service
+spec:
+  selector:
+    app: flower
+  ports:
+    - protocol: TCP
+      port: 5555
+      targetPort: 5555
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flower-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flower
+  template:
+    metadata:
+      labels:
+        app: flower
+    spec:
+      containers:
+      - name: flower
+        image: devermyst/ia-tp:latest
+        command: ["celery", "-A", "worker.app", "flower", "--port=5555"]
+        env: # pour écouter les messages - répété dans api.yaml pour déposer les messages
+        - name: CELERY_BROKER_URL
+          value: "pyamqp://guest:guest@rabbitmq-service:5672//"
+        - name: CELERY_RESULT_BACKEND
+          value: "redis://redis-service:6379/0"
+        ports:
+        - containerPort: 5555
+        resources:
+          requests:
+            memory: "512Mi"   # Minimum garanti
+            cpu: "250m"
+          limits:
+            memory: "2Gi"     # Maximum autorisé (augmente si nécessaire)
+            cpu: "1000m"

@@ -1,15 +1,24 @@
+import os
 import time
 
 import requests
 import streamlit as st
 
+API_URL = os.getenv("API_URL", "http://api:8000")
 st.title("IA Monitor - Celery Training")
+
+st.divider()
+st.sidebar.header("Monitoring")
+st.sidebar.write("[Ouvrir Flower (Dashboard)](http://localhost:5555)")
+st.sidebar.info(
+    "Utilisez `docker-compose up -d --scale worker=5` pour voir la vitesse augmenter !"
+)
 
 if "jobs" not in st.session_state:
     st.session_state.jobs = []
 
 if st.button("Lancer une prédiction"):
-    req = requests.post("http://api:8000/predict")
+    req = requests.post(f"{API_URL}/predict")
     task_id = req.json()["task_id"]
     st.session_state.jobs.append(task_id)
 
